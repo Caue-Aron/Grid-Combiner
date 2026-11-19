@@ -22,13 +22,14 @@ class GTE():
     def edge_function(self, ax, ay, bx, by, px, py):
         return (bx - ax) * (py - ay) - (by - ay) * (px - ax)
         
-    def projection(self, x, y, z):        
+    def projection(self, point):
+        x, y, z = point[..., 0], point[..., 1], point[..., 2]
         sx = self._core._scr_width // 2 + x * self._fov // z
         sy = self._core._scr_height // 2 - y * self._fov // z
-        
-        return (sx, sy)
 
-    def rotate_y_deg(self, angle, vertices):
+        return np.stack((sx, sy), axis=-1).astype(int)
+
+    def rotate_y_deg(self, angle):
         a = radians(angle)
         cos_a = cos(a)
         sin_a = sin(a)
@@ -39,12 +40,9 @@ class GTE():
             [-sin_a, 0, cos_a],
         ])
                 
-        return [
-            tuple(rot_mat @ np.array(point, dtype=np.int64))
-            for point in vertices
-        ]
+        return rot_mat
         
-    def rotate_x_deg(self, angle, vertices):
+    def rotate_x_deg(self, angle):
         a = radians(angle)
         cos_a = cos(a)
         sin_a = sin(a)
@@ -55,12 +53,9 @@ class GTE():
             [0,  sin_a,  cos_a],
         ])
                 
-        return [
-            tuple(rot_mat @ np.array(point, dtype=np.int64))
-            for point in vertices
-        ]
+        return rot_mat
         
-    def rotate_z_deg(self, angle, vertices):
+    def rotate_z_deg(self, angle):
         a = radians(angle)
         cos_a = cos(a)
         sin_a = sin(a)
@@ -71,7 +66,4 @@ class GTE():
             [0,      0,      1    ],
         ])
                 
-        return [
-            tuple(rot_mat @ np.array(point, dtype=np.int64))
-            for point in vertices
-        ]
+        return rot_mat
