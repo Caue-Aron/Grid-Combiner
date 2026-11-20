@@ -37,6 +37,8 @@ cube_idx = cube_idx[:, ::-1]
 
 tri_3d = cube_verts[cube_idx]
 
+tri = np.array([[0, 50, 160], [60, -40, 320], [-60, -30, 140]])
+
 if __name__ == '__main__':
     core = Core(SCR_W, SCR_H)
     gte = GTE(core, 160)
@@ -44,7 +46,7 @@ if __name__ == '__main__':
 
     rot_x = gte.rotate_x_deg(-15)
     rot_y = gte.rotate_y_deg(45)
-    rot_z = gte.rotate_z_deg(45)
+    rot_z = gte.rotate_z_deg(60)
     
     rot_mat = rot_y @ rot_x @ rot_z
     tri_3d = tri_3d @ rot_mat.T
@@ -53,10 +55,13 @@ if __name__ == '__main__':
     
     tri = gte.projection(tri_3d[...])
     
-    face_colors = [colors[i // 2] for i in range(len(tri))]
+    face_colors = [[colors[i], colors[i+1], colors[i+2]] for i in range(len(tri))]
 
     for t, c in zip(tri, face_colors):
-        gpu.triangle(t, c)
+        gpu.shaded_triangle(t, c)
+
+    # tri = gte.projection(tri)
+    # gpu.shaded_triangle(tri, (COLOR_MAGENTA, COLOR_GREEN, COLOR_BLUE))
     
     img = Image.fromarray(core._buffer)
     img.save('output.png')
