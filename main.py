@@ -5,6 +5,8 @@ from colors import *
 from gte import GTE
 from core import Core
 from gpu import GPU
+from v_out import VOut
+from math import radians, sin, cos
 
 SCR_H = 240
 SCR_W = 320
@@ -38,11 +40,35 @@ UV_A = ((0, 0), (1, 0), (1, 1))
 UV_B = ((0, 0), (1, 1), (0, 1))
 CUBE_UVS = [UV_A, UV_B] * 6
 CUBE_UVS = CUBE_UVS[::-1]
+CUBE_TRIS = CUBE_TRIS - np.array([0, 0, 250])
 
 
 tri_3d = CUBE_TRIS[:, ::-1]
 
 tri = np.array([[0, 50, 160], [60, -40, 320], [-60, -30, 140]])
+
+class App(VOut):
+    def __init__(self, gpu, title='Demo'):
+        super().__init__(gpu, title)
+        self.model = CUBE_TRIS[:, ::-1]          # never modified
+        self.face_colors = [
+            [choice(colors) for _ in range(3)]
+            for _ in range(len(self.model))
+        ]
+
+    def render(self, t, dt):
+        self._gpu.clear_scr()
+
+        rot = self._gte.rotate_y_deg(45 * t) @ self._gte.rotate_z_deg(30 * t)
+
+        tri_3d = self.model @ rot.T              # rotate about own center
+        tri_3d = tri_3d + (0, 0, 160)            # then place in the scene
+        tri_2d = self._gte.projection(tri_3d)
+
+        for tri, c, uv in zip(tri_2d, self.face_colors, CUBE_UVS):
+            self._gpu.shaded_textured_triangle(tri, uv, img_array, c)
+
+        return self._core._buffer
 
 if __name__ == '__main__':
     img = Image.open('image.png')
@@ -54,21 +80,27 @@ if __name__ == '__main__':
 
     rot_x = gte.rotate_x_deg(-15)
     rot_y = gte.rotate_y_deg(45)
-    rot_z = gte.rotate_z_deg(60)
+    rot_z = gte.rotate_z_deg(45)
     
-    rot_mat = rot_y @ rot_x @ rot_z
+    rot_mat = rot_y @ rot_z
     tri_3d = tri_3d @ rot_mat.T
-    tri_3d = tri_3d + (-150, -50, 75)
+    tri_3d = tri_3d + (0, 0, 160)
     
     tri = gte.projection(tri_3d[...])
     
-    face_colors = [[colors[i], colors[i+1], colors[i+2]] for i in range(len(tri))]
+    face_colors = [
+        [choice(colors) for _ in range(3)]
+        for _ in range(len(tri))
+    ]
 
     for t, c, uv in zip(tri, face_colors, CUBE_UVS):
-        gpu.textured_triangle(t, uv, img_array)
+        gpu.shaded_textured_triangle(t, uv, img_array, c)
 
     # tri = gte.projection(tri)
     # gpu.shaded_textured_triangle(tri, ((.5, 1), (1, 0), (0, 0)), img_array, (COLOR_BLUE, COLOR_GREEN, COLOR_RED))
     
     img = Image.fromarray(core._buffer)
     img.save('output.png')
+
+    app = App(gpu)
+    app.mainloop()

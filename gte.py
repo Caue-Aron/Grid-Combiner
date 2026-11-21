@@ -2,6 +2,7 @@ import numpy as np
 from core import Core
 from colors import *
 from math import cos, sin, radians
+from numba import njit
 
 SCR_H = 240
 SCR_W = 320
@@ -18,7 +19,7 @@ class GTE():
         self._grid_yx = self._core._grid_yx
         self._grid_y = self._core._grid_y
         self._grid_x = self._core._grid_x
-        
+    
     def edge_function(self, ax, ay, bx, by, px, py):
         return (bx - ax) * (py - ay) - (by - ay) * (px - ax)
         
@@ -41,6 +42,15 @@ class GTE():
         ])
                 
         return rot_mat
+
+    def scale_mat(self, sx, sy, sz):
+        scale_mat = np.array([
+            [sx, 0,  0 ],
+            [0,  sy, 0 ],
+            [0,  0,  sz],
+        ])
+
+        return scale_mat
         
     def rotate_x_deg(self, angle):
         a = radians(angle)

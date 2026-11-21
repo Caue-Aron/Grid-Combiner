@@ -82,8 +82,9 @@ class GPU:
 
         double_area = eab_1 + eab_2 + eab_3
 
-        if double_area.any() <= 0:
-            raise Exception('Degenrate triangle')
+        area = self._gte.edge_function(*tri[0], *tri[1], *tri[2])
+        if area <= 0:
+            return
 
         lbda_1 = eab_2 / double_area
         lbda_2 = eab_3 / double_area
@@ -129,8 +130,9 @@ class GPU:
 
         double_area = eab_1 + eab_2 + eab_3
 
-        if double_area.any() <= 0:
-            raise Exception('Degenrate triangle')
+        area = self._gte.edge_function(*tri[0], *tri[1], *tri[2])
+        if area <= 0:
+            return
 
         lbda_1 = eab_2 / double_area
         lbda_2 = eab_3 / double_area
@@ -188,8 +190,9 @@ class GPU:
 
         double_area = eab_1 + eab_2 + eab_3
 
-        if double_area.any() <= 0:
-            raise Exception('Degenrate triangle')
+        area = self._gte.edge_function(*tri[0], *tri[1], *tri[2])
+        if area <= 0:
+            return
 
         lbda_1 = eab_2 / double_area
         lbda_2 = eab_3 / double_area
