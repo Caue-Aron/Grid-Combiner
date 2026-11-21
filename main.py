@@ -11,35 +11,43 @@ SCR_W = 320
 
 OFY = SCR_H // 2
 OFX = SCR_W // 2
-H = 160
 
-tri_3d = np.array([
-    ((  0,  50, 0), ( 60, -40, 0), (-60, -40, 0)),
-    ((  0,  50, 0), ( 50, -50, 0), (-50, -50, 0)),
-    ((-80,  30, 0), (-20, -30, 0), (-90, -40, 0)),
+CUBE_TRIS = np.array([
+    # near (z = 200)
+    [[-50, -50, 200], [ 50, -50, 200], [ 50,  50, 200]],
+    [[-50, -50, 200], [ 50,  50, 200], [-50,  50, 200]],
+    # far (z = 300)
+    [[ 50, -50, 300], [-50, -50, 300], [-50,  50, 300]],
+    [[ 50, -50, 300], [-50,  50, 300], [ 50,  50, 300]],
+    # left (x = -50)
+    [[-50, -50, 300], [-50, -50, 200], [-50,  50, 200]],
+    [[-50, -50, 300], [-50,  50, 200], [-50,  50, 300]],
+    # right (x = 50)
+    [[ 50, -50, 200], [ 50, -50, 300], [ 50,  50, 300]],
+    [[ 50, -50, 200], [ 50,  50, 300], [ 50,  50, 200]],
+    # top (y = -50)
+    [[-50, -50, 300], [ 50, -50, 300], [ 50, -50, 200]],
+    [[-50, -50, 300], [ 50, -50, 200], [-50, -50, 200]],
+    # bottom (y = 50)
+    [[-50,  50, 200], [ 50,  50, 200], [ 50,  50, 300]],
+    [[-50,  50, 200], [ 50,  50, 300], [-50,  50, 300]],
 ])
 
-s = 50
-cube_verts = np.array([
-    (-s, -s, -s), ( s, -s, -s), ( s,  s, -s), (-s,  s, -s),   # 0-3: near face (z = -s)
-    (-s, -s,  s), ( s, -s,  s), ( s,  s,  s), (-s,  s,  s),   # 4-7: far face  (z = +s)
-])
+# UVs, same pattern for every face: first tri of a quad, then second tri
+UV_A = ((0, 0), (1, 0), (1, 1))
+UV_B = ((0, 0), (1, 1), (0, 1))
+CUBE_UVS = [UV_A, UV_B] * 6
+CUBE_UVS = CUBE_UVS[::-1]
 
-cube_idx = np.array([
-    (0, 1, 2), (0, 2, 3),   # front
-    (5, 4, 7), (5, 7, 6),   # back
-    (4, 0, 3), (4, 3, 7),   # left
-    (1, 5, 6), (1, 6, 2),   # right
-    (3, 2, 6), (3, 6, 7),   # top
-    (0, 4, 5), (0, 5, 1),   # bottom
-])
-cube_idx = cube_idx[:, ::-1]
 
-tri_3d = cube_verts[cube_idx]
+tri_3d = CUBE_TRIS[:, ::-1]
 
 tri = np.array([[0, 50, 160], [60, -40, 320], [-60, -30, 140]])
 
 if __name__ == '__main__':
+    img = Image.open('image.png')
+    img_array = np.array(img)
+
     core = Core(SCR_W, SCR_H)
     gte = GTE(core, 160)
     gpu = GPU(core, gte)
@@ -50,18 +58,17 @@ if __name__ == '__main__':
     
     rot_mat = rot_y @ rot_x @ rot_z
     tri_3d = tri_3d @ rot_mat.T
-    
-    tri_3d = tri_3d + (0, 0, 200)
+    tri_3d = tri_3d + (-150, -50, 75)
     
     tri = gte.projection(tri_3d[...])
     
     face_colors = [[colors[i], colors[i+1], colors[i+2]] for i in range(len(tri))]
 
-    for t, c in zip(tri, face_colors):
-        gpu.shaded_triangle(t, c)
+    for t, c, uv in zip(tri, face_colors, CUBE_UVS):
+        gpu.textured_triangle(t, uv, img_array)
 
     # tri = gte.projection(tri)
-    # gpu.shaded_triangle(tri, (COLOR_MAGENTA, COLOR_GREEN, COLOR_BLUE))
+    # gpu.shaded_textured_triangle(tri, ((.5, 1), (1, 0), (0, 0)), img_array, (COLOR_BLUE, COLOR_GREEN, COLOR_RED))
     
     img = Image.fromarray(core._buffer)
     img.save('output.png')
