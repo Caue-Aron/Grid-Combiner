@@ -2,11 +2,12 @@ import numpy as np
 from PIL import Image
 from random import choice
 from colors import *
-from gte import GTE
-from core import Core
-from gpu import GPU
+import gte
+from core import RenderState
+import gpu
 from v_out import VOut
 from math import radians, sin, cos
+from numba import typeof
 
 SCR_W = 320
 SCR_H = 240
@@ -36,8 +37,8 @@ CUBE_TRIS = np.array([
 ])
 
 # UVs, same pattern for every face: first tri of a quad, then second tri
-UV_A = ((0, 0), (1, 0), (1, 1))
-UV_B = ((0, 0), (1, 1), (0, 1))
+UV_A = np.array(((0, 0), (1, 0), (1, 1)))
+UV_B = np.array(((0, 0), (1, 1), (0, 1)))
 CUBE_UVS = [UV_A, UV_B] * 6
 CUBE_UVS = CUBE_UVS[::-1]
 CUBE_TRIS = CUBE_TRIS - np.array([0, 0, 250])
@@ -50,8 +51,8 @@ tri = np.array([[0, 50, 160], [60, -40, 320], [-60, -30, 140]])
 from random import choice, uniform
 
 class App(VOut):
-    def __init__(self, gpu, title='Demo', cube_count=10):
-        super().__init__(gpu, title)
+    def __init__(self, title='Demo', cube_count=70):
+        super().__init__(title)
 
         self.model = CUBE_TRIS[:, ::-1]
         self.uvs = CUBE_UVS
@@ -78,14 +79,17 @@ class App(VOut):
                     uniform(10, 60),
                     uniform(10, 60)
                 ),
-                "colors": [
-                    [choice(colors) for _ in range(3)]
-                    for _ in range(len(self.model))
-                ]
+                "colors": np.array(
+                    [
+                        [choice(colors) for _ in range(3)]
+                        for _ in range(len(self.model))
+                    ],
+                    dtype=np.float32,
+                )
             })
 
     def render(self, t, dt):
-        self._gpu.clear_scr()
+        self.render_state.buffer[...] = COLOR_YELLOW
 
         # rot = self._gte.rotate_y_deg(15 * t) @ self._gte.rotate_z_deg(30 * t)
         # big_tri = self.model @ rot.T
@@ -119,37 +123,28 @@ class App(VOut):
             rz = cube["rotation"][1] + cube["speed"][1] * t
 
             rot = (
-                self._gte.rotate_y_deg(rx)
-                @ self._gte.rotate_z_deg(rz)
+                gte.rotate_y_deg(rx)
+                @ gte.rotate_z_deg(rz)
             )
 
             tri_3d = self.model @ rot.T
             tri_3d = tri_3d + cube["position"]
 
-            tri_2d = self._gte.projection(tri_3d)
+            tri_2d = gte.projection(self.render_state, 160, tri_3d)
 
             for tri, c, uv in zip(
                 tri_2d,
                 cube["colors"],
                 self.uvs
             ):
-                self._gpu.shaded_textured_triangle(
-                    tri, uv, img_array, c
-                )
+                gpu.shaded_textured_triangle(self.render_state.buffer, tri, uv, img_array, c)
             
 
-        return self._core._buffer.astype(np.uint8)
+        return self.render_state.buffer.astype(np.uint8)
 
 if __name__ == '__main__':
     img = Image.open('image.png')
     img_array = np.array(img)
-
-    core = Core(SCR_W, SCR_H)
-    gte = GTE(core, 160)
-    gpu = GPU(core, gte)
-    
-    img = Image.fromarray(core._buffer)
-    img.save('output.png')
 
     app = App(gpu)
     app.mainloop()

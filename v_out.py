@@ -1,19 +1,22 @@
-from gpu import GPU
+import gpu
 import tkinter as tk
 import numpy as np
 from PIL import Image, ImageTk
 import time
+from core import RenderState
 
 class VOut(tk.Tk):
-    def __init__(self, gpu:GPU, title='Demo'):
+    def __init__(self, title='Demo'):
         super().__init__()
-        self._gpu = gpu
-        self._gte = self._gpu._gte
-        self._core = self._gpu._core
+        self.render_state = RenderState(
+            buffer=np.zeros((240, 320, 3), np.uint8),
+            width=320,
+            height=240,
+        )
 
         self.title(title)
         self.scale = 3
-        self.geometry(f'{gpu._core._scr_width*self.scale}x{gpu._core._scr_height*self.scale}')
+        self.geometry(f'{self.render_state.width*self.scale}x{self.render_state.height*self.scale}')
 
         self.fps, self.total = 30, 60
         self.frame_i = 0
@@ -27,7 +30,7 @@ class VOut(tk.Tk):
 
     def render(self, t, dt):
         # your software renderer goes here; return an (H, W, 3) uint8 array
-        return np.empty((240, 320, 3), dtype=np.uint8)
+        return np.empty((self.render_state.width, self.render_state.height, 3), dtype=np.uint8)
 
     def step(self):
         now = time.perf_counter()
@@ -42,7 +45,7 @@ class VOut(tk.Tk):
 
         self.title(f'Demo - {ms:.2f}')
 
-        img = Image.fromarray(frame).resize((self._core._scr_width*self.scale, self._core._scr_width*self.scale), Image.NEAREST)
+        img = Image.fromarray(frame).resize((self.render_state.width*self.scale, self.render_state.height*self.scale), Image.NEAREST)
         self.photo = ImageTk.PhotoImage(img)   # keep a reference on self
         self.label.config(image=self.photo)
 
