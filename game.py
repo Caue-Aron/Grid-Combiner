@@ -6,22 +6,30 @@ import gte
 import gpu
 from v_out import VOut
 from math import radians, sin, cos
+from map import MAP
 
-FRONT_FACE = np.array([
-    [[-50, -50, 200], [ 50, -50, 200], [ 50,  50, 200]],
-    [[-50, -50, 200], [ 50,  50, 200], [-50,  50, 200]],
-])[:, ::-1] - [0, 0, 250]
+CELL = 100
+h = CELL / 2
+
+# horizontal floor quad centered on the origin, at height y = 0
+FLOOR = np.array([
+    [[-h, 0, -h], [ h, 0, -h], [ h, 0,  h]],
+    [[-h, 0, -h], [ h, 0,  h], [-h, 0,  h]],
+])[:, ::-1]
 
 UV_A = np.array(((0, 0), (1, 0), (1, 1)))
 UV_B = np.array(((0, 0), (1, 1), (0, 1)))
 FACE_UV = np.array([UV_A, UV_B])[:, ::-1]
+
+def cell_center(row, col):
+    return np.array([(col + 0.5) * CELL, 0, (row + 0.5) * CELL])
 
 class App(VOut):
     def __init__(self, title='Demo', face_count=6):
         super().__init__(title)
 
         self.keys = set()
-        self.cam_pos = np.array([0.0, 0.0, -400.0])
+        self.cam_pos = np.array([150.0, 75.0, 150.0])
         self.yaw = 0.0     # degrees, positive = turn right
         self.pitch = 0.0   # degrees, positive = look up
 
@@ -31,34 +39,31 @@ class App(VOut):
 
         wall_img = Image.open('image.png')
         self.wall_img_array = np.array(wall_img)
-
-        self.model = FRONT_FACE
         
         self.uvs = FACE_UV
 
         self.faces = []
 
         offset = 100
-        half = (face_count - 1) * offset / 2
-        for i in range(face_count):
-            for j in range(face_count):
-                self.faces.append({
-                    "position": (
-                        j*offset - half,
-                        i*offset - half,
-                        0
-                    ),
-                })
+        for i, row in enumerate(MAP):
+            for j, col in enumerate(row):
+                if col == 0:
+                    self.faces.append({
+                        "position": cell_center(i, j)
+                    })
 
-        self.model = FRONT_FACE + [0, 0, 50]
-        self.world_faces = [FRONT_FACE + face['position'] for face in self.faces]
+        quad = FLOOR
+        self.model = quad
+        self.world_faces = [quad + face['position'] for face in self.faces]
         self.colors = np.array(
             [[COLOR_LIGHT_GRAY for _ in range(3)] for _ in range(len(self.world_faces))], 
             dtype=np.float32
         )
 
-        self.tris_3d = self.world_faces @ gte.rotate_x_deg(90).T
-        self.tris_3d = self.tris_3d + (0, -160, 320)
+        
+        # self.tris_3d = self.world_faces @ gte.rotate_x_deg(90).T
+        # self.tris_3d = self.tris_3d @ gte.scale_mat(2, 1, 2)
+        # self.tris_3d = self.tris_3d + (0, -220, 320)
 
         n = len(self.world_faces)
         self.uvs_all    = np.tile(self.uvs, (n, 1, 1, 1))                        # (faces, 2, 3, 2)
@@ -71,7 +76,7 @@ class App(VOut):
         self.render_state.buffer[...] = COLOR_YELLOW
 
         view = gte.rotate_x_deg(self.pitch) @ gte.rotate_y_deg(-self.yaw)
-        tris_3d = (self.tris_3d - self.cam_pos) @ view.T
+        tris_3d = (self.world_faces - self.cam_pos) @ view.T
 
         NEAR = 1
         visible = (tris_3d[..., 2] >= NEAR).all(axis=-1)   # (faces, 2)
@@ -83,7 +88,6 @@ class App(VOut):
 
         for tri, uv, c in zip(tri_2d, uvs, cols):
             gpu.shaded_textured_triangle(self.render_state.buffer, tri, uv, self.wall_img_array, c)
-            
 
         return self.render_state.buffer.astype(np.uint8)
 
