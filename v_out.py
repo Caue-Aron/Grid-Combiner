@@ -6,12 +6,12 @@ import time
 from core import RenderState
 
 class VOut(tk.Tk):
-    def __init__(self, title='Demo'):
+    def __init__(self, title='Demo', width=320, height=240):
         super().__init__()
         self.render_state = RenderState(
             buffer=np.zeros((240, 320, 3), np.uint8),
-            width=320,
-            height=240,
+            width=width,
+            height=height,
         )
 
         self.title(title)

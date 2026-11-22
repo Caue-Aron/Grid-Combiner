@@ -11,6 +11,18 @@ OFY = SCR_H // 2
 OFX = SCR_W // 2
 
 @njit(cache=True)
+def check_face_orientation(tri):
+    x0, y0 = tri[0, 0], tri[0, 1]
+    x1, y1 = tri[1, 0], tri[1, 1]
+    x2, y2 = tri[2, 0], tri[2, 1]
+
+    area = edge_function(x0, y0, x1, y1, x2, y2)
+    if area <= 0:
+        return
+
+    return x0, y0, x1, y1, x2, y2
+
+@njit(cache=True)
 def edge_function(ax, ay, bx, by, px, py):
     return (bx - ax) * (py - ay) - (by - ay) * (px - ax)
 

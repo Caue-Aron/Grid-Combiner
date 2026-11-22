@@ -9,8 +9,8 @@ from v_out import VOut
 from math import radians, sin, cos
 from numba import typeof
 
-SCR_W = 320
-SCR_H = 240
+SCR_W = 200
+SCR_H = 150
 
 OFY = SCR_H // 2
 OFX = SCR_W // 2
@@ -91,33 +91,6 @@ class App(VOut):
     def render(self, t, dt):
         self.render_state.buffer[...] = COLOR_YELLOW
 
-        # rot = self._gte.rotate_y_deg(15 * t) @ self._gte.rotate_z_deg(30 * t)
-        # big_tri = self.model @ rot.T
-        # big_tri = big_tri + (0, 0, 110)
-        # big_tri = self._gte.projection(big_tri)
-
-
-        # self.tri_calls = 0
-
-        # for tri, c, uv in zip(
-        #     big_tri,
-        #     self.colors,
-        #     self.uvs
-        # ):
-            
-        #     # self.tri_calls += self._gpu.shaded_triangle(
-        #     #                 tri, uv, img_array, c
-        #     #             ) or 0
-
-        #     # self.tri_calls += self._gpu.shaded_triangle(
-        #     #                 tri, c
-        #     #             ) or 0
-
-        #     self.tri_calls += self._gpu.shaded_textured_triangle(
-        #                     tri, uv, img_array, c
-        #                 ) or 0
-
-
         for cube in self.cubes:
             rx = cube["rotation"][0] + cube["speed"][0] * t
             rz = cube["rotation"][1] + cube["speed"][1] * t
@@ -140,7 +113,7 @@ class App(VOut):
                 gpu.shaded_textured_triangle(self.render_state.buffer, tri, uv, img_array, c)
             
 
-        return self.render_state.buffer.astype(np.uint8)
+        return self.render_state.buffer
 
 if __name__ == '__main__':
     img = Image.open('image.png')
