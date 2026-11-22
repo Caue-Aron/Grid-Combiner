@@ -4,8 +4,8 @@ from colors import *
 from math import cos, sin, radians
 from numba import njit
 
-SCR_H = 240
-SCR_W = 320
+SCR_W = 200
+SCR_H = 150
 
 OFY = SCR_H // 2
 OFX = SCR_W // 2
@@ -20,7 +20,7 @@ class GTE():
         self._grid_y = self._core._grid_y
         self._grid_x = self._core._grid_x
     
-    def edge_function(self, ax, ay, bx, by, px, py):
+    def edge_function(ax, ay, bx, by, px, py):
         return (bx - ax) * (py - ay) - (by - ay) * (px - ax)
         
     def projection(self, point):
@@ -77,3 +77,35 @@ class GTE():
         ])
                 
         return rot_mat
+
+    def plane_coeffs(tri, A):
+        # tri: array of shape (3, 2), the vertices [[x0, y0], [x1, y1], [x2, y2]]
+        # A:   array of shape (3,), the attribute value at each vertex
+        A = np.array(A)
+
+        x0, y0 = tri[0]
+        x1, y1 = tri[1]
+        x2, y2 = tri[2]
+
+        dx1, dy1 = x1 - x0, y1 - y0
+        dx2, dy2 = x2 - x0, y2 - y0
+        det = dx1 * dy2 - dx2 * dy1
+
+        d1 = A[1] - A[0]  # how much A changes along edge 1
+        d2 = A[2] - A[0]  # how much A changes along edge 2
+
+        a = (d1 * dy2 - d2 * dy1) / det
+        b = (d2 * dx1 - d1 * dx2) / det
+        c = A[0] - a * x0 - b * y0
+
+        return a, b, c
+
+    def edge_coeffs(ax, ay, bx, by):
+        A = -(by - ay)
+        B = (bx - ax)
+        C = -ay*(bx - ax) + ax*(by - ay)
+
+        return A, B, C
+
+if __name__ == '__main__':
+    print(GTE.edge_coeffs(0, 0, 4, 0))

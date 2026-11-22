@@ -23,6 +23,8 @@ class VOut(tk.Tk):
         self.label = tk.Label(self)
         self.label.pack()
 
+        self.time_ms = 0
+
     def render(self, t, dt):
         # your software renderer goes here; return an (H, W, 3) uint8 array
         return np.empty((240, 320, 3), dtype=np.uint8)
@@ -36,10 +38,11 @@ class VOut(tk.Tk):
         t0 = time.perf_counter()
         frame = self.render(t, dt)
         ms = (time.perf_counter() - t0) * 1000
+        self.time_ms += ms
 
-        print(ms)
+        self.title(f'Demo - {ms:.2f}')
 
-        img = Image.fromarray(frame).resize((320*self.scale, 240*self.scale), Image.NEAREST)
+        img = Image.fromarray(frame).resize((self._core._scr_width*self.scale, self._core._scr_width*self.scale), Image.NEAREST)
         self.photo = ImageTk.PhotoImage(img)   # keep a reference on self
         self.label.config(image=self.photo)
 
