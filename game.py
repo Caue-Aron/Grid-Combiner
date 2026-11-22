@@ -17,12 +17,25 @@ FLOOR = np.array([
     [[-h, 0, -h], [ h, 0,  h], [-h, 0,  h]],
 ])[:, ::-1]
 
+WALL = np.array([
+    [[-h, -h, 0], [ h, -h, 0], [ h,  h, 0]],
+    [[-h, -h, 0], [ h,  h, 0], [-h,  h, 0]],
+])[:, ::-1]
+
 UV_A = np.array(((0, 0), (1, 0), (1, 1)))
 UV_B = np.array(((0, 0), (1, 1), (0, 1)))
 FACE_UV = np.array([UV_A, UV_B])[:, ::-1]
 
+CELL_WALL = 1
+CELL_FLOOR = 0
+
 def cell_center(row, col):
     return np.array([(col + 0.5) * CELL, 0, (row + 0.5) * CELL])
+
+def is_empty(row, col):
+    if row < 0 or row >= len(MAP) or col < 0 or col >= len(MAP[0]):
+        return False        # outside the map counts as solid
+    return MAP[row][col] == CELL_FLOOR
 
 class App(VOut):
     def __init__(self, title='Demo', face_count=6):
@@ -42,41 +55,75 @@ class App(VOut):
         
         self.uvs = FACE_UV
 
-        self.faces = []
-
-        offset = 100
+        self.positions = []
         for i, row in enumerate(MAP):
             for j, col in enumerate(row):
-                if col == 0:
-                    self.faces.append({
-                        "position": cell_center(i, j)
-                    })
+                wall_n = wall_e = wall_s = wall_w = False
 
-        quad = FLOOR
-        self.model = quad
-        self.world_faces = [quad + face['position'] for face in self.faces]
+                wall_n = is_empty(i - 1, j)
+                wall_e = is_empty(i, j + 1)
+                wall_s = is_empty(i + 1, j)
+                wall_w = is_empty(i, j - 1)
+
+                self.positions.append({
+                    "position": cell_center(i, j),
+                    "cell": col,
+                    "walls": [wall_n, wall_e, wall_s, wall_w]
+                })
+
+        floor = FLOOR
+        self.model_floor = floor
+        self.world_floor = np.array([floor + face['position'] for face in self.positions if face['cell'] == CELL_FLOOR])
         self.colors = np.array(
-            [[COLOR_LIGHT_GRAY for _ in range(3)] for _ in range(len(self.world_faces))], 
+            [[COLOR_LIGHT_GRAY for _ in range(3)] for _ in range(len(self.world_floor))], 
             dtype=np.float32
         )
 
-        
-        # self.tris_3d = self.world_faces @ gte.rotate_x_deg(90).T
-        # self.tris_3d = self.tris_3d @ gte.scale_mat(2, 1, 2)
-        # self.tris_3d = self.tris_3d + (0, -220, 320)
-
-        n = len(self.world_faces)
+        n = len(self.world_floor)
         self.uvs_all    = np.tile(self.uvs, (n, 1, 1, 1))                        # (faces, 2, 3, 2)
         self.colors_all = np.full((n, 2, 3, 3), COLOR_LIGHT_GRAY, dtype=np.float32)  # (faces, 2, 3, 3)
 
-        pass
+        wall = WALL
+        self.model_wall = wall
+
+        quads = []
+        for face in self.positions:
+            if face['cell'] != CELL_WALL:
+                continue
+
+            if face['walls'][0]:
+                quads.append(wall + face['position'] + (0, 50, -50))
+
+            if face['walls'][1]:
+                quads.append(wall @ gte.rotate_y_deg(-90).T + face['position'] + (50, 50, 0))
+
+            if face['walls'][2]:
+                quads.append(wall @ gte.rotate_y_deg(180).T + face['position'] + (0, 50, 50))
+
+            if face['walls'][3]:
+                quads.append(wall @ gte.rotate_y_deg(90).T + face['position'] + (-50, 50, 0))
+        
+        self.world_wall = np.array(quads)
+        n = len(self.world_wall)
+
+        self.uvs_all = np.vstack((
+            self.uvs_all,
+            np.tile(self.uvs, (n, 1, 1, 1))
+        ))
+        self.colors_all = np.vstack((
+            self.colors_all,
+            np.full((n, 2, 3, 3), COLOR_WHITE, dtype=np.float32)
+        ))
 
     def render(self, t, dt):
         self.update_camera(dt)
         self.render_state.buffer[...] = COLOR_YELLOW
 
         view = gte.rotate_x_deg(self.pitch) @ gte.rotate_y_deg(-self.yaw)
-        tris_3d = (self.world_faces - self.cam_pos) @ view.T
+        tris_3d = np.vstack((
+            (self.world_floor - self.cam_pos) @ view.T,
+            (self.world_wall - self.cam_pos) @ view.T,
+        ))
 
         NEAR = 1
         visible = (tris_3d[..., 2] >= NEAR).all(axis=-1)   # (faces, 2)
